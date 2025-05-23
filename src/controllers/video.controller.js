@@ -1,11 +1,11 @@
-import mongoose, {isValidObjectId} from "mongoose"
-import {Video} from "../models/video.model.js"
-import {User} from "../models/user.model.js"
-import {ApiError} from "../utils/apiError.js"
-import {ApiResponse} from "../utils/ApiResponse.js"
-import {asyncHandler} from "../utils/asyncHandler.js"
-import {uploadOnCloudinary} from "../utils/file_upload.js"
-import ffmpeg from "fluent-ffmpeg";
+import mongoose, { isValidObjectId } from "mongoose"
+import { Video } from "../models/video.model.js"
+import { User } from "../models/user.model.js"
+import { ApiError } from "../utils/apiError.js"
+import { ApiResponse } from "../utils/ApiResponse.js"
+import { asyncHandler } from "../utils/asyncHandler.js"
+import { uploadOnCloudinary } from "../utils/file_upload.js"
+
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -35,14 +35,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     );
 })
 // Helper function
-const getVideoDuration = (filePath) => {
-    return new Promise((resolve, reject) => {
-        ffmpeg.ffprobe(filePath, (err, metadata) => {
-            if (err) return reject(err);
-            resolve(metadata.format.duration);
-        });
-    });
-};
+
 
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body;
@@ -57,17 +50,18 @@ const publishAVideo = asyncHandler(async (req, res) => {
     }
 
     // Upload video to Cloudinary
-    const videoUpload = await uploadOnCloudinary(req.files.video.tempFilePath, "video");
+    const videoLocalPath = req.files.video[0].path;
+    const videoUpload = await uploadOnCloudinary(videoLocalPath, "video");
     if (!videoUpload?.url) {
         throw new ApiError(500, "Video upload failed");
     }
     // Get duration from temp file
-    const duration = await getVideoDuration(req.files.video.tempFilePath);
+    const duration = videoUpload?.duration || 0;
 
     // Optional: handle thumbnail
     let thumbnailUrl = "";
     if (req.files.thumbnail) {
-        const thumbUpload = await uploadOnCloudinary(req.files.thumbnail.tempFilePath, "image");
+        const thumbUpload = await uploadOnCloudinary(req.files.thumbnail[0].path, "image");
         thumbnailUrl = thumbUpload?.url || "";
     }
 
@@ -169,11 +163,11 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Video not found");
     }
 
-    video.published = !video.published;
+    video.ispublished = !video.ispublished;
     await video.save();
 
     return res.status(200).json(
-        new ApiResponse(200, video, `Video publish status toggled to ${video.published}`)
+        new ApiResponse(200, video, `Video publish status toggled to ${video.ispublished}`)
     );
 })
 
@@ -184,5 +178,5 @@ export {
     updateVideo,
     deleteVideo,
     togglePublishStatus,
-    getVideoDuration
+
 }
