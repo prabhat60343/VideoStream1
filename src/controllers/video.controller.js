@@ -5,6 +5,7 @@ import { ApiError } from "../utils/apiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { uploadOnCloudinary } from "../utils/file_upload.js"
+import { summarizeText } from "../utils/summarizer.js"
 
 
 
@@ -64,10 +65,19 @@ const publishAVideo = asyncHandler(async (req, res) => {
         const thumbUpload = await uploadOnCloudinary(req.files.thumbnail[0].path, "image");
         thumbnailUrl = thumbUpload?.url || "";
     }
+    // Generate AI summary from title + description
+    let summary = "";
+    try {
+        summary = await summarizeText(`${title}. ${description}`);
+    } catch (err) {
+        console.error("Summary generation failed:", err);
+        summary = "Summary not available";
+    }
 
     const video = await Video.create({
         title,
         description,
+        summary,
         videoFile: videoUpload.url,
         thumbnail: thumbnailUrl,
         duration,
@@ -75,7 +85,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     });
 
     return res.status(201).json(
-        new ApiResponse(201, video, "Video published successfully")
+        new ApiResponse(201, video, "Video published successfully with AI-generated summary")
     );
 });
 
@@ -123,6 +133,14 @@ const updateVideo = asyncHandler(async (req, res) => {
 
     if (title) video.title = title;
     if (description) video.description = description;
+    
+    // ✅ Regenerate summary only if description is updated
+    try {
+        const summary = await summarizeText(description);
+        video.summary = summary;
+    } catch (err) {
+        console.error("Error regenerating summary:", err.message);
+    }
     video.thumbnail = thumbnailUrl;
 
     await video.save();

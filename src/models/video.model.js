@@ -34,6 +34,10 @@ const videoSchema = new Schema(
         owner: {
             type: Schema.Types.ObjectId,
             ref: "User"
+        },
+        summary: {
+            type: String,
+            default: ""   // will be filled by AI summarizer
         }
 
     }, 
